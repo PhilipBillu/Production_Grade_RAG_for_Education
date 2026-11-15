@@ -105,13 +105,15 @@ class LLMJudge:
 
         # Heuristic fallback if Groq client is unavailable
         if not self.client:
+            if not answer or answer.startswith("[Groq client is not configured"):
+                return 0.0, "Generation did not occur (missing API key or empty answer)."
             combined_context = normalize_text(" ".join(context_chunks))
-            answer_words = [w for w in normalize_text(answer).split() if len(w) > 4]
+            answer_words = [w for w in normalize_text(answer).split() if len(w) > 3]
             if not answer_words:
-                return 1.0, "Heuristic: Answer contains standard formatting."
+                return 0.0, "Answer contains no substantive words."
             found = sum(1 for w in answer_words if w in combined_context)
-            score = round(min(1.0, (found / len(answer_words)) + 0.2), 2)
-            return score, f"Heuristic overlap score: {score:.2f} (Groq client not active)"
+            score = round(found / len(answer_words), 2)
+            return score, f"Strict context overlap score: {score:.2f} (Groq client not active)"
 
         context_text = "\n\n".join(
             f"Chunk {i+1}:\n{chunk}" for i, chunk in enumerate(context_chunks)
@@ -239,7 +241,10 @@ def run_evaluation(
         # 1. Refusal Correctness Evaluation
         # Check if the answer indicates refusal
         is_refusal = refusal_triggered or "insufficient information" in generated_answer.lower()
-        if should_refuse:
+        if generated_answer.startswith("[Groq client is not configured"):
+            is_refusal = False
+            refusal_correct = 0.0
+        elif should_refuse:
             refusal_correct = 1.0 if is_refusal else 0.0
         else:
             refusal_correct = 1.0 if not is_refusal else 0.0
