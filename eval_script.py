@@ -158,8 +158,14 @@ Where faithfulness_score is a float from 0.0 to 1.0 (1.0 = completely grounded, 
             reason = str(data.get("reasoning", "Evaluated by LLM Judge"))
             return score, reason
         except Exception as exc:
-            # Fallback to token overlap if call fails
-            return 0.9, f"LLM Judge call error ({exc}), fallback used"
+            print(f"[Judge Error] LLM Judge call failed: {exc}")
+            combined_context = normalize_text(" ".join(context_chunks))
+            answer_words = [w for w in normalize_text(answer).split() if len(w) > 3]
+            if not answer_words:
+                return 0.0, f"Judge call failed ({exc}) and empty answer"
+            found = sum(1 for w in answer_words if w in combined_context)
+            score = round(found / len(answer_words), 2)
+            return score, f"Judge call failed ({exc}), strict overlap fallback: {score:.2f}"
 
 
 # ==============================================================================
