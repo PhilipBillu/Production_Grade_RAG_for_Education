@@ -155,6 +155,9 @@ def init_db() -> bool:
                 
                 CREATE INDEX IF NOT EXISTS idx_rag_query_logs_status 
                 ON rag_query_logs(status_code);
+
+                CREATE OR REPLACE VIEW request_logs AS 
+                SELECT * FROM rag_query_logs;
             """)
             conn.commit()
             logger.info("[DB Logger] 'rag_query_logs' table verified/initialized in PostgreSQL.")
