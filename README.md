@@ -228,3 +228,5 @@ python eval_script.py --dataset dataset/golden_qa.json --endpoint http://localho
 
 - **No Hardcoded Absolute Paths**: All paths in `ingest.py`, `scripts/`, and `tests/` use `Path(__file__).resolve().parent`.
 - **Zip-Ready**: You can zip this entire `Production_Grade_RAG_for_Education` folder, copy it to another laptop, unzip it, and run `docker compose up -d` followed by `python ingest.py`.
+
+<!-- Dummy PR Verification -->
