@@ -13,10 +13,6 @@ import sys
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
-# Force offline mode for tests using cached weights
-os.environ["HF_HUB_OFFLINE"] = "1"
-os.environ["TRANSFORMERS_OFFLINE"] = "1"
-
 # Ensure project root is in sys.path
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 if str(PROJECT_ROOT) not in sys.path:
