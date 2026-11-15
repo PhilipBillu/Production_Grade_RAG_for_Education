@@ -20,6 +20,7 @@ __pycache__/
 dataset/eval_report.json
 server.log
 *.log
+tiktoken_cache/
 
 # OS & Editor files
 .DS_Store

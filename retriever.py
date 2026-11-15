@@ -406,7 +406,9 @@ class HybridRetriever:
         for node_with_score, ce_score, rrf_rank in reranked_results:
             node = node_with_score.node
             meta = dict(node.metadata) if hasattr(node, "metadata") and node.metadata else {}
+            node_id = getattr(node, "node_id", getattr(node, "id_", f"chunk_{rrf_rank}"))
             output.append({
+                "id": str(node_id),
                 "text": node.get_content(),
                 "score": round(float(ce_score), 4),
                 "initial_rrf_rank": rrf_rank,

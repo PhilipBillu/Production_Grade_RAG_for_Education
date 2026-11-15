@@ -36,4 +36,11 @@ rank-bm25>=0.2.2
 # LLM Generation & Structured Output
 groq>=0.9.0
 langchain-core>=0.2.0
+tiktoken>=0.7.0
+
+# Database & Observability (Phase 5)
+psycopg2-binary>=2.9.0
+SQLAlchemy>=2.0.0
+prometheus-client>=0.20.0
+
 

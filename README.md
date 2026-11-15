@@ -224,6 +224,54 @@ python eval_script.py --dataset dataset/golden_qa.json --endpoint http://localho
 
 ---
 
+### 9. Phase 5: Observability, Metrics & Monitoring
+
+Phase 5 equips the RAG platform with production-grade observability, telemetry, and monitoring:
+
+1. **PostgreSQL Telemetry Logging Middleware (`db_logger.py`)**:
+   - Intercepts every `/query` request via FastAPI HTTP middleware.
+   - Automatically records into `rag_query_logs` table:
+     - `timestamp`: UTC datetime of request
+     - `user_query`: Raw educational user query
+     - `retrieved_chunk_ids`: JSON array of retrieved chunk identifiers
+     - `reranked_scores`: JSON array of CrossEncoder neural rerank scores
+     - `final_prompt`: Full interpolated prompt passed to Groq LLM
+     - `llm_response`: Output answer and citations
+     - `token_count`: Prompt tokens + Completion tokens computed using `tiktoken` (`cl100k_base`)
+     - `latency_ms`: Total end-to-end execution latency in milliseconds
+     - `refusal_triggered`: Boolean indicator if pre-gate or post-gate refusal occurred
+     - `status_code`: HTTP response status code
+   - Database operations run asynchronously in background workers, ensuring zero latency penalty for API responses.
+
+2. **Prometheus Metrics (`/metrics`)**:
+   - Exposes standard Prometheus text metrics at `GET /metrics`.
+   - **P50, P95, P99 Pipeline Latency**: High-resolution `Histogram` metric (`rag_pipeline_latency_seconds`) with buckets spanning 25ms to 30s.
+   - **Throughput**: `rag_requests_total` partitioned by endpoint, HTTP method, and status code.
+   - **Failure Rates**: `rag_request_failures_total` tracking errors and failure percentages.
+   - **Token Consumption**: `rag_tokens_consumed_total` segmented by `prompt`, `completion`, and `total`.
+   - **Refusal Triggers**: `rag_refusals_total` classified by stage (`pre_gate` vs `post_gate`).
+
+3. **Prometheus & Grafana Monitoring Stack**:
+   - Start the monitoring stack:
+     ```bash
+     docker compose -f docker-compose.monitoring.yml up -d
+     ```
+   - **Prometheus Web UI**: `http://localhost:9090` (scrapes FastAPI at `host.docker.internal:8000/metrics` every 5 seconds).
+   - **Grafana Web UI**: `http://localhost:3000` (`admin` / `admin`).
+   - **Auto-Provisioned Dashboard**: Automatically loads [monitoring/grafana_dashboard.json](file:///C:/Users/ADMIN/OneDrive/Desktop/Production_Grade_RAG_for_Education/monitoring/grafana_dashboard.json) with panels for:
+     - Pipeline Latency Percentiles (P50, P95, P99)
+     - Pipeline Failure Rate (%)
+     - Query Request Throughput (req/s)
+     - Token Consumption Rate (tokens/s) and Total Tokens Consumed
+     - Educational Refusal Rate by Stage
+
+#### Run Phase 5 Tests:
+```bash
+python tests/test_logging_and_metrics.py
+```
+
+---
+
 ## Portability Guarantee
 
 - **No Hardcoded Absolute Paths**: All paths in `ingest.py`, `scripts/`, and `tests/` use `Path(__file__).resolve().parent`.

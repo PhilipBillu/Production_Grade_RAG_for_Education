@@ -80,6 +80,7 @@ jobs:
           python tests/test_parsers_and_chunker.py
           python tests/test_hybrid_retriever_and_api.py
           python tests/test_generator_and_refusal.py
+          python tests/test_logging_and_metrics.py
 
       # 6. Start FastAPI server in background
       - name: Start FastAPI Query Server
@@ -87,6 +88,11 @@ jobs:
           WEAVIATE_HOST: localhost
           WEAVIATE_HTTP_PORT: 8080
           WEAVIATE_GRPC_PORT: 50051
+          POSTGRES_HOST: localhost
+          POSTGRES_PORT: 5432
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: rag_db
           GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
           GROQ_MODEL: openai/gpt-oss-20b
           REFUSAL_THRESHOLD: 0.4
@@ -106,6 +112,8 @@ jobs:
             echo "Waiting ($i/30)..."
             sleep 2
           done
+          echo "Verifying /metrics endpoint..."
+          curl -s http://localhost:8000/metrics | head -n 10
 
       # 8. Execute CI/CD Evaluation & Regression Gating
       - name: Run Evaluation Script & Regression Gate
