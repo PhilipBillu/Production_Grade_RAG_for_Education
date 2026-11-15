@@ -1,0 +1,92 @@
+[
+  {
+    "id": "qa_001",
+    "question": "What is the primary role of Weaviate in the educational RAG architecture?",
+    "ground_truth": "Weaviate serves as the cloud-native vector database storing high-dimensional embeddings and executing sub-millisecond similarity search using HNSW index graphs and gRPC.",
+    "should_refuse": false,
+    "category": "vector_store",
+    "expected_citations": [1],
+    "key_facts": ["vector database", "embeddings", "similarity search", "HNSW", "gRPC"]
+  },
+  {
+    "id": "qa_002",
+    "question": "What embedding model is used and what is its vector dimension?",
+    "ground_truth": "The dense embedding model is BAAI/bge-small-en-v1.5, which converts unstructured text into 384-dimensional dense vectors.",
+    "should_refuse": false,
+    "category": "embeddings",
+    "expected_citations": [1],
+    "key_facts": ["BAAI/bge-small-en-v1.5", "384-dimensional", "dense vectors"]
+  },
+  {
+    "id": "qa_003",
+    "question": "How does Retrieval-Augmented Generation improve domain accuracy in educational platforms?",
+    "ground_truth": "RAG improves domain accuracy by grounding Large Language Model responses in verified course materials, syllabi, and lecture notes rather than generating hallucinated answers from memory.",
+    "should_refuse": false,
+    "category": "rag_architecture",
+    "expected_citations": [1],
+    "key_facts": ["grounding", "verified course materials", "hallucination"]
+  },
+  {
+    "id": "qa_004",
+    "question": "What is the chunk size and overlap in the lecture notes?",
+    "ground_truth": "The lecture notes specify a chunk size of 800 tokens and an overlap of 100 tokens to maintain coherent context boundaries.",
+    "should_refuse": false,
+    "category": "chunking",
+    "expected_citations": [1],
+    "key_facts": ["800", "100", "overlap", "context boundaries"]
+  },
+  {
+    "id": "qa_005",
+    "question": "What role does PostgreSQL play alongside Weaviate in this deployment?",
+    "ground_truth": "PostgreSQL complements Weaviate by handling structured metadata, relational schemas, and audit logs.",
+    "should_refuse": false,
+    "category": "database",
+    "expected_citations": [1],
+    "key_facts": ["PostgreSQL", "structured metadata", "relational schemas", "audit logs"]
+  },
+  {
+    "id": "qa_006",
+    "question": "What built-in modules and features does Weaviate support for vector operations?",
+    "ground_truth": "Weaviate features built-in module support including text2vec-huggingface, seamless gRPC connectivity for ultra-fast vector operations, and HNSW index graphs for millisecond-latency nearest neighbor queries.",
+    "should_refuse": false,
+    "category": "vector_store",
+    "expected_citations": [1],
+    "key_facts": ["text2vec-huggingface", "gRPC", "HNSW"]
+  },
+  {
+    "id": "qa_007",
+    "question": "What is the capital city of Mars?",
+    "ground_truth": "I am sorry, but the provided context does not contain sufficient information to answer this question.",
+    "should_refuse": true,
+    "category": "out_of_domain",
+    "expected_citations": [],
+    "key_facts": ["insufficient information", "refusal"]
+  },
+  {
+    "id": "qa_008",
+    "question": "Who was the Roman Emperor who built Hadrian's Wall?",
+    "ground_truth": "I am sorry, but the provided context does not contain sufficient information to answer this question.",
+    "should_refuse": true,
+    "category": "out_of_domain",
+    "expected_citations": [],
+    "key_facts": ["insufficient information", "refusal"]
+  },
+  {
+    "id": "qa_009",
+    "question": "How do you bake a chocolate soufflé at high altitude?",
+    "ground_truth": "I am sorry, but the provided context does not contain sufficient information to answer this question.",
+    "should_refuse": true,
+    "category": "out_of_domain",
+    "expected_citations": [],
+    "key_facts": ["insufficient information", "refusal"]
+  },
+  {
+    "id": "qa_010",
+    "question": "What are the rules and regulations for driving a motor vehicle in Australia?",
+    "ground_truth": "I am sorry, but the provided context does not contain sufficient information to answer this question.",
+    "should_refuse": true,
+    "category": "out_of_domain",
+    "expected_citations": [],
+    "key_facts": ["insufficient information", "refusal"]
+  }
+]

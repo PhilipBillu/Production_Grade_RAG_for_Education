@@ -1,0 +1,70 @@
+%PDF-1.4
+%----
+1 0 obj
+<< /Type /Catalog /Pages 2 0 R >>
+endobj
+2 0 obj
+<< /Type /Pages /Kids [3 0 R 4 0 R] /Count 2 >>
+endobj
+3 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Contents 5 0 R /Resources << /Font << /F1 7 0 R >> >> >>
+endobj
+4 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Contents 6 0 R /Resources << /Font << /F1 7 0 R >> >> >>
+endobj
+5 0 obj
+<< /Length 459 >>
+stream
+BT
+/F1 20 Tf
+50 750 Td
+(Sample Educational Lecture Notes - Page 1) Tj
+/F1 12 Tf
+0 -30 Td
+(Retrieval-Augmented Generation with LlamaIndex and Weaviate) Tj
+0 -20 Td
+(LlamaIndex provides robust data connectors, node parsers, and vector store indices.) Tj
+0 -20 Td
+(Weaviate stores high-dimensional embeddings and executes sub-millisecond vector search.) Tj
+0 -20 Td
+(Chunk size of 800 tokens and overlap of 100 tokens maintain coherent context boundaries.) Tj
+ET
+endstream
+endobj
+6 0 obj
+<< /Length 459 >>
+stream
+BT
+/F1 20 Tf
+50 750 Td
+(Sample Educational Lecture Notes - Page 2) Tj
+/F1 12 Tf
+0 -30 Td
+(Dense Embeddings via BAAI/bge-small-en-v1.5) Tj
+0 -20 Td
+(The BGE small embedding model converts unstructured sentences into 384-dimensional vectors.) Tj
+0 -20 Td
+(These dense vector representations capture semantic intent beyond keyword matching.) Tj
+0 -20 Td
+(PostgreSQL complements Weaviate by handling structured metadata, relational schemas, and audit logs.) Tj
+ET
+endstream
+endobj
+7 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>
+endobj
+xref
+0 8
+0000000000 65535 f 
+0000000015 00000 n 
+0000000064 00000 n 
+0000000127 00000 n 
+0000000253 00000 n 
+0000000379 00000 n 
+0000000889 00000 n 
+0000001399 00000 n 
+trailer
+<< /Size 8 /Root 1 0 R >>
+startxref
+1469
+%%EOF

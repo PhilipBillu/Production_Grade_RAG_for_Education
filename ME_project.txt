@@ -1,0 +1,81 @@
+My project explaination :
+
+
+-> domain specific RAG
+-> documents [Technical , research, legal, Health Care document]
+-> System includes information , answer, questions
+-> files type [PDF, MD, web pages]
+-> 800 chuck token , 100 overlap tokens : store this in vector store like chroma or weaviate
+-> pipeline the relevant information and generate answer
+-> hybrid retrieval [ traditional 25 keyword search + vector based sematics] for understanding, meaning
+-> BM25 handles user specific search
+-> re ranking
+-> initial chucks : resources them using a model based on query
+-> chucks as a pairs
+-> the system explicitly decline to answer if the retrieval chucks are not supported to answer
+-> store all your prompts in versioned config files
+-> 200 question and answers pairs manually evaluate for corretness
+-> offline evaluation scripts
+-> every pull request gets the evaluation
+-> if quality drops below our threshold the build fails
+-> if a request come:
+    -> which chuncks are retrieved
+    -> how the reranker re ordered them
+    -> what prompt was sent to the language model
+    -> what the response was
+    -> how many tokens consumed
+-> tracking quality metrics ever time
+-> latency PSO, P95 (no average)
+-> monitor failure rate
+-> question: why quality degraded last tuesday , answers: dashboard analysis and point the root
+-> Regression gating : if the faithfulness or any key metric drops below the threshold , the build fails the change doesnot get merged
+-> making the model consistently excentlent at a specific and well defined task
+-> structured JSON extraction from messy unstructured text
+-> Tool call accurary where the model needs to 
+-> select the right function and populate the correct parameters
+-> supervised fine funing with lora
+-> clean dataset 2000 - 10000 samples
+-> parameter efficient fine tuning using lora and qlora
+-> quan 3 AP include JSON validity rate, Exact match accuracy
+-> refusal correctness
+-> Preference tuning : a every single prompt, make the model learn best , average, worst outputs using a DPO style preference optimization approach
+-> Re-evaluate in the test set
+-> supervised fine tuning base line
+-> TRL library [Transformer Reinforcement Learning] do well SFT and DPO training tooling
+-> AXOLAH reduces lots of the confirguation complexities
+-> GPU compute without managing cloud fireworks AI 
+->  show training curve
+-> present before and after metrix very cleanly
+-> honestly discuss want went wrong during the process what you iterate part to it
+
+Techstack:
+
+Backend - Python + FAST API
+Ingestion - LlamaIndex parsers (pypdf, markdown, BeautifulSoup)
+Lexical search - BM25 (rank_bm25 lib)
+Sematic search - Local Weaviate docker
+Hybrid search - Reciprocal Rank Fusion (RRF)
+Reranking - cross-encoder/ms-macro-MiniLM-L-6-v2 (via hugging)
+Embeddings - BAAI/bge-small-en-v1.5 (via hugging face sentence-transformers)
+RAG framework - LlamaIndex
+LLM(Baseline) - Groq API (Free Tier) - llama3-8b-8192
+LLM(Fine-Tuned) - Ollama (Local) - llama3:8b-instruct-q4_K_M + LoRA Adapter
+fine tuning - hugging face transformers + TRL
+training compute - Google Colab (Free Tier) T4 GPU
+parameter efficiency - PEFT(peft library + bitsandbytes)
+Experiment tracking - local MLflow
+Monitoring - local Promotheus docker + Grafana docker
+LLM Logging - PostgreSQL(Indexing)
+CI/CD gating - github actions(free tier)
+database - PostgreSQL docker
+
+existing :
+-> chucking
+-> refusal mechanism
+-> fine tuning
+proposed :
+-> Observability
+-> CI/CD Gating
+-> DPO / preference tuning
+-> structure JSON extraction
+-> Tool call accurary

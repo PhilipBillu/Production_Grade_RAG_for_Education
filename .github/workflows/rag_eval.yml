@@ -1,0 +1,138 @@
+name: RAG Evaluation & CI/CD Regression Gating
+
+on:
+  pull_request:
+    branches: [ main, master ]
+  push:
+    branches: [ main, master ]
+  workflow_dispatch:
+
+jobs:
+  rag-evaluation-gate:
+    name: Automated RAG Quality Gate
+    runs-on: ubuntu-latest
+
+    services:
+      weaviate:
+        image: semitechnologies/weaviate:1.27.0
+        ports:
+          - 8080:8080
+          - 50051:50051
+        env:
+          QUERY_DEFAULTS_LIMIT: 25
+          AUTHENTICATION_ANONYMOUS_ACCESS_ENABLED: 'true'
+          PERSISTENCE_DATA_PATH: '/var/lib/weaviate'
+          ENABLE_MODULES: 'text2vec-huggingface'
+          DEFAULT_VECTORIZER_MODULE: 'text2vec-huggingface'
+          CLUSTER_HOSTNAME: 'node1'
+        options: >-
+          --health-cmd "wget --no-verbose --tries=1 --spider http://localhost:8080/v1/.well-known/ready || exit 1"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 10
+
+      postgres:
+        image: postgres:16-alpine
+        ports:
+          - 5432:5432
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: rag_db
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 5
+
+    steps:
+      # 1. Checkout repository
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      # 2. Set up Python environment
+      - name: Set up Python 3.10
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+          cache: 'pip'
+
+      # 3. Install dependencies
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install torch --index-url https://download.pytorch.org/whl/cpu
+          pip install -r requirements.txt
+
+      # 4. Ingest sample documents into Weaviate
+      - name: Run Ingestion Pipeline
+        env:
+          WEAVIATE_HOST: localhost
+          WEAVIATE_HTTP_PORT: 8080
+          WEAVIATE_GRPC_PORT: 50051
+          INDEX_NAME: DocumentChunk
+        run: |
+          python ingest.py
+
+      # 5. Run Offline Unit & Integration Tests
+      - name: Run Offline Unit & Integration Tests
+        run: |
+          python tests/test_parsers_and_chunker.py
+          python tests/test_hybrid_retriever_and_api.py
+          python tests/test_generator_and_refusal.py
+
+      # 6. Start FastAPI server in background
+      - name: Start FastAPI Query Server
+        env:
+          WEAVIATE_HOST: localhost
+          WEAVIATE_HTTP_PORT: 8080
+          WEAVIATE_GRPC_PORT: 50051
+          GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
+          GROQ_MODEL: openai/gpt-oss-20b
+          REFUSAL_THRESHOLD: 0.4
+        run: |
+          nohup python main.py > server.log 2>&1 &
+          echo "FastAPI background server launched."
+
+      # 7. Poll server health check
+      - name: Wait for FastAPI Readiness
+        run: |
+          echo "Waiting for FastAPI server to become healthy..."
+          for i in {1..30}; do
+            if curl -s http://localhost:8000/health | grep -q '"status":"healthy"'; then
+              echo "FastAPI server is ready!"
+              break
+            fi
+            echo "Waiting ($i/30)..."
+            sleep 2
+          done
+
+      # 8. Execute CI/CD Evaluation & Regression Gating
+      - name: Run Evaluation Script & Regression Gate
+        env:
+          GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
+          GROQ_MODEL: openai/gpt-oss-20b
+          REFUSAL_THRESHOLD: 0.4
+        run: |
+          python eval_script.py \
+            --dataset dataset/golden_qa.json \
+            --endpoint http://localhost:8000/query \
+            --output dataset/eval_report.json \
+            --faithfulness-threshold 0.85 \
+            --refusal-threshold 0.90
+
+      # 9. Dump Server Logs on Failure
+      - name: Dump Server Logs on Failure
+        if: failure()
+        run: |
+          echo "===== SERVER LOG OUTPUT ====="
+          cat server.log || echo "No server.log found"
+
+      # 10. Upload Evaluation Report
+      - name: Upload Evaluation Artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: rag-evaluation-report
+          path: dataset/eval_report.json
+          if-no-files-found: ignore

@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Production-Grade Retrieval-Augmented Generation (RAG) for Education</title>
+    <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; line-height: 1.6; padding: 2rem; }
+        .hidden-metadata { display: none; }
+    </style>
+    <script>
+        // Analytics dummy code that must be sanitized and stripped by BeautifulSoup parser
+        console.log("Telemetry tracker active");
+    </script>
+</head>
+<body>
+    <header>
+        <nav>
+            <a href="#overview">Overview</a> | 
+            <a href="#weaviate">Vector Store</a> | 
+            <a href="#embeddings">Dense Embeddings</a>
+        </nav>
+        <h1>Production-Grade RAG Architecture for Educational Systems</h1>
+    </header>
+
+    <main>
+        <section id="overview">
+            <h2>Overview of RAG in Education</h2>
+            <p>
+                Retrieval-Augmented Generation (RAG) significantly improves domain accuracy in educational platforms
+                by grounding Large Language Model (LLM) responses in verified course materials, syllabi, and research papers.
+                Rather than generating hallucinated answers from memory, the system fetches relevant semantic passages
+                at query time and presents them as contextual grounding.
+            </p>
+            <p>
+                Key pipeline stages include robust multi-source ingestion (PDF lecture notes and web articles),
+                sentence-aware chunking to preserve educational context, and dense vector indexing.
+            </p>
+        </section>
+
+        <section id="weaviate">
+            <h2>Vector Storage: Local Weaviate Instance</h2>
+            <p>
+                Weaviate is a cloud-native, open-source vector database designed for production-scale similarity search.
+                It features built-in module support including text2vec-huggingface, seamless gRPC connectivity for
+                ultra-fast vector operations, and HNSW index graphs for millisecond-latency nearest neighbor queries.
+            </p>
+            <p>
+                In this local deployment, Weaviate works alongside PostgreSQL, providing vector indexing and relational
+                metadata management side by side.
+            </p>
+        </section>
+
+        <section id="embeddings">
+            <h2>Dense Vector Embeddings: BAAI/bge-small-en-v1.5</h2>
+            <p>
+                The BAAI/bge-small-en-v1.5 embedding model maps educational texts into a 384-dimensional dense vector space.
+                Trained with multi-stage contrastive learning by the Beijing Academy of Artificial Intelligence,
+                it delivers exceptional performance on semantic retrieval benchmarks (MTEB) while remaining lightweight
+                and fast enough to execute efficiently on CPU environments.
+            </p>
+        </section>
+    </main>
+
+    <footer>
+        <p>&copy; 2026 Production-Grade RAG Pipeline for Education.</p>
+    </footer>
+</body>
+</html>

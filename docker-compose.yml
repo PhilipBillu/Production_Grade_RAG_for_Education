@@ -1,0 +1,74 @@
+# ==============================================================================
+# Local Services for RAG Pipeline: Weaviate Vector Store & PostgreSQL
+# ==============================================================================
+
+services:
+  # ----------------------------------------------------------------------------
+  # Weaviate Vector Database
+  # ----------------------------------------------------------------------------
+  weaviate:
+    image: semitechnologies/weaviate:1.27.0
+    container_name: weaviate_rag
+    restart: on-failure:0
+    command:
+      - --host
+      - 0.0.0.0
+      - --port
+      - '8080'
+      - --scheme
+      - http
+    ports:
+      # REST API port for metadata and status
+      - "8080:8080"
+      # gRPC port used by the Weaviate v4 Python client for high-performance vector operations
+      - "50051:50051"
+    environment:
+      # Enable the Hugging Face vectorizer module as required
+      ENABLE_MODULES: 'text2vec-huggingface'
+      DEFAULT_VECTORIZER_MODULE: 'text2vec-huggingface'
+      # Optional Hugging Face API key for serverless inference (if used)
+      HUGGINGFACE_APIKEY: ${HUGGINGFACE_APIKEY:-}
+      # Query defaults and local storage settings
+      QUERY_DEFAULTS_LIMIT: 25
+      AUTHENTICATION_ANONYMOUS_ACCESS_ENABLED: 'true'
+      PERSISTENCE_DATA_PATH: '/var/lib/weaviate'
+      CLUSTER_HOSTNAME: 'node1'
+    volumes:
+      - weaviate_data:/var/lib/weaviate
+    healthcheck:
+      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:8080/v1/.well-known/ready || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  # ----------------------------------------------------------------------------
+  # PostgreSQL Relational Database
+  # ----------------------------------------------------------------------------
+  postgres:
+    image: postgres:16-alpine
+    container_name: postgres_rag
+    restart: unless-stopped
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      POSTGRES_DB: ${POSTGRES_DB:-rag_db}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-rag_db}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 5s
+
+# ------------------------------------------------------------------------------
+# Persistent Volume Declarations
+# ------------------------------------------------------------------------------
+volumes:
+  weaviate_data:
+    name: weaviate_rag_data
+  postgres_data:
+    name: postgres_rag_data

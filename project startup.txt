@@ -1,0 +1,18 @@
+project startup:
+----------------
+
+step 1:
+1.1 [cmd] docker pull semitechnologies/weaviate:1.27.0 (FT) //pre downloads docker image into local cache
+1.2 [cmd] docker compose up -d (ET) //starts weavite & Postgres background containers
+1.3 [cmd] docker ps (O) //containers health check
+1.4 [browser] http://localhost:8080/v1/meta (O) //check weaviate version and active modules
+
+step 2:
+2.1 [cmd] Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope Process (ET) //allow script commands
+2.2 [cmd] .\.venv\Scripts\activate (ET) //points python
+2.3 [cmd] pip install torch --index-url https://download.pytorch.org/whl/cpu (FT) //installs lightweighted CPU PyTorch into .venv
+2.4 [cmd] pip install -r requirements.txt (FT) //installs LlamaIndex, Weavite client, and parsers
+2.5 [cmd] python ingest.py (ET) //parses, chucks, embeds and loads document into weavite
+
+step 3:
+3.1 [browser] http://localhost:8080/v1/objects (O) //checking stored vectors and metadata
