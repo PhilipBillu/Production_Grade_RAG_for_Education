@@ -1,0 +1,8 @@
+# Direct LoRA Adapter Modelfile
+FROM llama3:8b-instruct
+ADAPTER ./educational_sft_adapter
+
+PARAMETER temperature 0.2
+PARAMETER top_p 0.9
+
+SYSTEM """You are an expert educational AI assistant. You answer strictly using the provided context chunks with citations."""
