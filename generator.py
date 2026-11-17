@@ -1,10 +1,12 @@
 """
 Module: generator.py
 ====================
-Generation Engine for Production-Grade RAG for Education using Groq API (openai/gpt-oss-20b).
+Generation Engine for Production-Grade RAG for Education supporting Dual Providers:
+1. Groq Cloud API (Default Baseline: 'openai/gpt-oss-20b').
+2. Local Ollama Fine-Tuned Model (Phase 6/7: 'educational-llama3' / GGUF).
 
 Features:
-1. Groq API Integration: Calls 'openai/gpt-oss-20b' with low temperature for factual grounding.
+1. Dynamic Provider Switching via LLM_PROVIDER ('groq' or 'ollama').
 2. Structured JSON Output: Enforces Pydantic model 'RAGResponse' (answer, citations, confidence)
    using LangChain's PydanticOutputParser and native JSON object mode.
 3. Two-Tier Refusal Mechanism:
@@ -20,6 +22,7 @@ import re
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
+import requests
 from dotenv import load_dotenv
 from langchain_core.exceptions import OutputParserException
 from langchain_core.output_parsers import PydanticOutputParser
@@ -91,24 +94,24 @@ def extract_json_from_text(text: str) -> str:
 
 
 # ==============================================================================
-# RAG Generator Class
+# RAG Generator Class (Dual Provider: Groq & Ollama)
 # ==============================================================================
 
 class RAGGenerator:
-    """Orchestrates LLM generation using Groq API, LangChain PydanticOutputParser,
+    """Orchestrates LLM generation using either Groq API or Local Ollama,
 
-    and threshold-based refusal gating.
+    enforcing structured Pydantic JSON outputs and threshold-based refusal gating.
     """
 
     def __init__(
         self,
+        provider: Optional[str] = None,
         api_key: Optional[str] = None,
-        model: str = "openai/gpt-oss-20b",
+        model: Optional[str] = None,
         refusal_threshold: float = 0.4,
         prompt_version: str = "v1",
     ) -> None:
-        self.api_key = api_key or os.getenv("GROQ_API_KEY")
-        self.model = model or os.getenv("GROQ_MODEL", "openai/gpt-oss-20b")
+        self.provider = (provider or os.getenv("LLM_PROVIDER", "groq")).lower().strip()
         self.refusal_threshold = float(os.getenv("REFUSAL_THRESHOLD", refusal_threshold))
         self.prompt_version = prompt_version
         self.prompt_template = load_prompt_template(self.prompt_version)
@@ -117,18 +120,43 @@ class RAGGenerator:
         self.parser = PydanticOutputParser(pydantic_object=RAGResponse)
         self.format_instructions = self.parser.get_format_instructions()
 
-        # Initialize Groq client
-        self.client: Optional[Any] = None
-        if GROQ_AVAILABLE and self.api_key:
-            try:
-                self.client = Groq(api_key=self.api_key)
-                print(f"[Generator] Groq client initialized with model '{self.model}'.")
-            except Exception as exc:
-                print(f"[Generator] Notice: Groq client failed to initialize: {exc}")
-                self.client = None
+        # Provider Configuration: Groq vs Ollama
+        if self.provider == "ollama":
+            self.ollama_base_url = os.getenv("OLLAMA_BASE_URL", "http://localhost:11434").rstrip("/")
+            self.ollama_model = model or os.getenv("OLLAMA_MODEL", "educational-llama3")
+            self.model = self.ollama_model
+            self.api_key = None
+            self.client = None
+            print(f"[Generator] Provider configured: 'ollama' (model: '{self.model}', url: '{self.ollama_base_url}')")
         else:
-            if not self.api_key:
-                print("[Generator] Notice: GROQ_API_KEY is not set. Generator will operate in mock/refusal mode.")
+            # Default Groq provider
+            self.provider = "groq"
+            self.api_key = api_key or os.getenv("GROQ_API_KEY")
+            self.model = model or os.getenv("GROQ_MODEL", "openai/gpt-oss-20b")
+            self.ollama_base_url = None
+            self.ollama_model = None
+
+            self.client: Optional[Any] = None
+            if GROQ_AVAILABLE and self.api_key:
+                try:
+                    self.client = Groq(api_key=self.api_key)
+                    print(f"[Generator] Groq client initialized with model '{self.model}'.")
+                except Exception as exc:
+                    print(f"[Generator] Notice: Groq client failed to initialize: {exc}")
+                    self.client = None
+            else:
+                if not self.api_key:
+                    print("[Generator] Notice: GROQ_API_KEY is not set. Generator will operate in mock/refusal mode.")
+
+    def is_ollama_ready(self) -> bool:
+        """Checks if local Ollama daemon is reachable on OLLAMA_BASE_URL."""
+        if not self.ollama_base_url:
+            return False
+        try:
+            r = requests.get(f"{self.ollama_base_url}/api/tags", timeout=1.5)
+            return r.status_code == 200
+        except Exception:
+            return False
 
     def format_context(self, chunks: List[Dict[str, Any]]) -> str:
         """Formats the top retrieved/reranked chunks into numbered, clean blocks for prompt context."""
@@ -198,6 +226,50 @@ class RAGGenerator:
         )
         return chat_completion.choices[0].message.content or ""
 
+    def _call_ollama_api(self, prompt: str) -> str:
+        """Direct call to Local Ollama Chat API with JSON schema enforcement."""
+        if not self.ollama_base_url:
+            raise RuntimeError("Ollama base URL is not configured.")
+
+        url = f"{self.ollama_base_url}/api/chat"
+        payload = {
+            "model": self.ollama_model,
+            "messages": [
+                {
+                    "role": "system",
+                    "content": (
+                        "You are an educational assistant that outputs ONLY valid JSON adhering strictly "
+                        "to the requested Pydantic schema."
+                    ),
+                },
+                {"role": "user", "content": prompt},
+            ],
+            "format": "json",
+            "stream": False,
+            "options": {
+                "temperature": 0.1,
+            },
+        }
+
+        try:
+            resp = requests.post(url, json=payload, timeout=60)
+            resp.raise_for_status()
+            data = resp.json()
+            return data.get("message", {}).get("content", "") or ""
+        except requests.exceptions.ConnectionError:
+            raise RuntimeError(
+                f"Could not connect to Ollama at {self.ollama_base_url}. "
+                f"Please ensure Ollama is running ('ollama serve') and model '{self.ollama_model}' exists."
+            )
+        except Exception as exc:
+            raise RuntimeError(f"Ollama API request failed: {exc}")
+
+    def _call_llm(self, prompt: str) -> str:
+        """Routes prompt to the active LLM provider (Groq or Ollama)."""
+        if self.provider == "ollama":
+            return self._call_ollama_api(prompt)
+        return self._call_groq_api(prompt)
+
     def parse_with_retry(
         self,
         raw_text: str,
@@ -216,11 +288,8 @@ class RAGGenerator:
             print(f"[Generator] Warning: Initial JSON parse failed ({first_err}). Initiating retry mechanism...")
 
         current_raw = raw_text
-        # 2. Retry loop with error feedback to Groq
+        # 2. Retry loop with error feedback to LLM
         for attempt in range(1, max_retries + 1):
-            if not self.client:
-                break
-
             retry_prompt = (
                 f"Your previous JSON response was invalid and failed Pydantic validation.\n"
                 f"Original Response:\n{current_raw}\n\n"
@@ -231,8 +300,8 @@ class RAGGenerator:
             )
 
             try:
-                print(f"[Generator] Retry attempt {attempt}/{max_retries} with error-feedback prompt...")
-                retry_output = self._call_groq_api(retry_prompt)
+                print(f"[Generator] Retry attempt {attempt}/{max_retries} with error-feedback prompt via {self.provider}...")
+                retry_output = self._call_llm(retry_prompt)
                 cleaned_retry = extract_json_from_text(retry_output)
                 parsed = self.parser.parse(cleaned_retry)
                 print(f"[Generator] Retry attempt {attempt} succeeded!")
@@ -263,15 +332,9 @@ class RAGGenerator:
 
         1. Pre-LLM refusal check (CrossEncoder threshold).
         2. Prompt template interpolation (top 5 chunks context + format instructions).
-        3. Groq API invocation (openai/gpt-oss-20b, json_object).
+        3. Dynamic LLM invocation (Groq or Ollama, json_object).
         4. Structured JSON parsing with fallback retry mechanism.
         5. Post-generation refusal normalization (check for 'I don't know').
-
-        Returns
-        -------
-        Dict[str, Any]
-            Dict with keys: 'rag_response', 'refusal_triggered', 'refusal_reason',
-            'prompt_used', 'raw_output'.
         """
         # Step 1: Pre-generation Refusal Gate (CrossEncoder score threshold)
         refuse_pre, reason_pre = self.check_refusal_threshold(chunks, threshold=threshold)
@@ -299,13 +362,13 @@ class RAGGenerator:
             question=question,
         )
 
-        # Check Groq client availability
-        if not self.client:
+        # Check Provider Configuration
+        if self.provider == "groq" and not self.client:
             reason = "Groq client is not configured (missing GROQ_API_KEY)."
             print(f"[Generator] {reason}")
             return {
                 "rag_response": RAGResponse(
-                    answer=f"[{reason}] Please configure GROQ_API_KEY in .env to enable generation.",
+                    answer=f"[{reason}] Please configure GROQ_API_KEY in .env or switch to LLM_PROVIDER=ollama.",
                     citations=[],
                     confidence=0.0,
                 ),
@@ -315,19 +378,20 @@ class RAGGenerator:
                 "raw_output": "",
             }
 
-        # Step 3: Invoke Groq API
+        # Step 3: Invoke LLM (Groq or Ollama)
         try:
-            raw_output = self._call_groq_api(prompt)
+            raw_output = self._call_llm(prompt)
         except Exception as exc:
-            print(f"[Generator Error] Groq API call failed: {exc}")
+            provider_label = self.provider.upper()
+            print(f"[Generator Error] {provider_label} API call failed: {exc}")
             return {
                 "rag_response": RAGResponse(
-                    answer=f"Error connecting to Groq API: {str(exc)}",
+                    answer=f"Error connecting to {provider_label} LLM: {str(exc)}",
                     citations=[],
                     confidence=0.0,
                 ),
                 "refusal_triggered": False,
-                "refusal_reason": f"Groq API error: {str(exc)}",
+                "refusal_reason": f"{provider_label} API error: {str(exc)}",
                 "prompt_used": prompt,
                 "raw_output": "",
             }
@@ -341,7 +405,6 @@ class RAGGenerator:
         )
 
         # Step 5: Post-generation Refusal Gate
-        # If the LLM output answer signals lack of info or "I don't know", enforce standardized refusal
         refusal_triggered = False
         refusal_reason: Optional[str] = None
 
