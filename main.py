@@ -90,11 +90,11 @@ async def lifespan(app: FastAPI):
         print(f"[Lifespan Error] Failed to initialize HybridRetriever: {exc}")
         app.state.retriever = None
 
-    # 3. Initialize RAGGenerator (Groq + LangChain PydanticOutputParser)
+    # 3. Initialize RAGGenerator (Dual Provider: Groq or Ollama)
     try:
         rag_generator = RAGGenerator()
         app.state.generator = rag_generator
-        print("[Lifespan] RAGGenerator successfully initialized.")
+        print(f"[Lifespan] RAGGenerator successfully initialized with provider '{rag_generator.provider}' (model: '{rag_generator.model}').")
     except Exception as exc:
         print(f"[Lifespan Error] Failed to initialize RAGGenerator: {exc}")
         app.state.generator = None
@@ -332,12 +332,14 @@ async def health_check():
     if retriever:
         corpus_size = len(retriever.corpus_nodes)
 
-    groq_status = "unconfigured"
-    groq_model = os.getenv("GROQ_MODEL", "openai/gpt-oss-20b")
-    if generator and generator.client:
-        groq_status = "connected"
-    elif os.getenv("GROQ_API_KEY"):
-        groq_status = "configured"
+    # LLM Provider status (Groq vs Ollama)
+    llm_provider = generator.provider if generator else os.getenv("LLM_PROVIDER", "groq").lower().strip()
+    active_model = generator.model if generator else (os.getenv("OLLAMA_MODEL", "educational-llama3") if llm_provider == "ollama" else os.getenv("GROQ_MODEL", "openai/gpt-oss-20b"))
+
+    if llm_provider == "ollama":
+        provider_status = "connected" if (generator and generator.is_ollama_ready()) else "configured"
+    else:
+        provider_status = "connected" if (generator and generator.client) else ("configured" if os.getenv("GROQ_API_KEY") else "unconfigured")
 
     # PostgreSQL check
     pg_status = "connected" if init_db() else "disconnected"
@@ -347,9 +349,15 @@ async def health_check():
         "weaviate": weaviate_status,
         "postgresql": pg_status,
         "bm25_corpus_size": corpus_size,
+        "llm": {
+            "provider": llm_provider,
+            "status": provider_status,
+            "model": active_model,
+            "refusal_threshold": float(os.getenv("REFUSAL_THRESHOLD", 0.4)),
+        },
         "groq": {
-            "status": groq_status,
-            "model": groq_model,
+            "status": provider_status if llm_provider == "groq" else "unconfigured",
+            "model": os.getenv("GROQ_MODEL", "openai/gpt-oss-20b"),
             "refusal_threshold": float(os.getenv("REFUSAL_THRESHOLD", 0.4)),
         },
         "models": {
